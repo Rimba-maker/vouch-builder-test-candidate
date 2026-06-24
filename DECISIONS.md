@@ -15,13 +15,15 @@
 
 **Skipped:**
 - Database — data is bundled for this test; in production this would be a DB query
-- Authentication — not in scope for this test
+- Authentication — deliberately not added at the service level. This service is designed as an internal microservice: the caller (Vouch backend) fetches hotel-specific data from the database, then calls this service. Authentication and tenant isolation belong at the API gateway layer, not inside the transformation service. Adding a toy `X-API-Key` header check would create false confidence without solving the actual isolation problem.
 - Multi-file night log ingestion — current parser handles one log file per shift date
 - Full NLP for non-English text — see "Grounding" section below
 
 ## How reconciliation across nights works
 
-Each event gets a `shiftDate` (the morning date it belongs to). Events at/after 23:00 SGT belong to the next calendar day's morning.
+Each event gets a `shiftDate` (the morning date it belongs to). Events at/after 23:00 **local hotel time** belong to the next calendar day's morning.
+
+Timezone is read from `hotel.timezone` in the events payload (e.g. `"+08:00"` for Singapore, `"+07:00"` for Bangkok, `"+09:00"` for Tokyo). The offset is parsed to hours and applied before the 23:00 boundary check, so the same UTC timestamp produces different shift dates for hotels in different timezones. A Bangkok hotel and a Tokyo hotel receiving the same event at 2026-05-27T15:30Z would assign it to different mornings (22:30 Bangkok → same day; 00:30 Tokyo → next morning). Default falls back to `+08:00` if the field is missing.
 
 Issues are grouped into threads by `room:category` key (e.g. `309:finance`, `hotel:compliance`). For each thread, the reconciler:
 
@@ -31,11 +33,17 @@ Issues are grouped into threads by `room:category` key (e.g. `309:finance`, `hot
 4. If there's no prior open thread → `new_tonight`
 5. If a thread has a previous open event but NO current-shift event → carry-over `still_open`
 
-**Known limitation:** Issues with `room=null` (hotel-wide issues) share a category key (e.g. `hotel:complaint`). A WiFi complaint from Night 3 and a breakfast complaint from Night 4 share the key `hotel:complaint`, so they appear in the same thread. In production, thread identity would use a unique issue ID, not just room+category.
+**Escalation:** Every output item carries a `nights_open` count (difference between `open_since` and `targetDate`). Carry-over items that have been open 3+ nights automatically escalate in priority (pending → high) and their note changes from "No update tonight" to "No update tonight — open N nights, escalated". The HTML view renders these with a red ⚠️ badge so the morning manager cannot miss a stale issue.
+
+**Known limitation:** Issues with `room=null` (hotel-wide issues) share a category key (e.g. `hotel:complaint`). A WiFi complaint from Night 3 and a breakfast complaint from Night 4 share the key `hotel:complaint`, so they appear in the same thread. In production, thread identity would use a unique issue ID, not just room+category. Filed as GitHub issue #1.
 
 ## How grounding works and how I handled incomplete/contradictory input
 
 **Grounding:** The service never generates text — it only reports what's in the source data. Every item in the handover has a `sources` array with exact event IDs (e.g. `evt_0007`) or nightlog refs (e.g. `nightlog-2026-05-28:bullet-5`). A reviewer can trace any statement back to its origin.
+
+The grounding guarantee is: *output ↔ input*, not *input ↔ truth*. If a staff member logs "deposit settled" when it wasn't, the service faithfully reports that — and the `sources` array lets the morning manager verify against the original entry. This is intentionally different from an LLM summariser, which can invent facts with no traceable source. The responsibility for input accuracy sits with the staff, not the service.
+
+To make this explicit in the output: every handover item carries `verbatim: true`, signalling to any consumer that the `summary` field is the staff's own words, not generated text. A frontend can use this to render a "verbatim" badge or tooltip.
 
 **Incomplete input:**
 - Events with `status: "unknown"` (from non-English nightlog lines) default to `pending` — the conservative choice. We don't assume something is resolved if we can't read it.
@@ -46,6 +54,10 @@ Issues are grouped into threads by `room:category` key (e.g. `309:finance`, `hot
 - Room 205: `evt_0024` says guest is in-house; nightlog (Night 3) says room appears unoccupied. Both appear in sources for the incident thread. Flagged as a data inconsistency.
 
 **Prompt injection:** `evt_0026` contains a guest-written note attempting to manipulate the handover output. Detected via regex on the description field, moved to `flagged`, never actioned. The original text is preserved so the morning manager can see and report it.
+
+The regex was expanded beyond the sample data to cover rephrasing variants: `disregard the previous`, `override the earlier`, `new instructions`, `reset all`, `mark rooms as clear`, and others. Each flagged item also includes a `detection_trigger` field showing exactly which phrase triggered the flag, so a reviewer can audit false positives.
+
+The real defence is structural: the service never executes instructions, it only classifies and reports. Even if an injection bypasses the regex, the worst outcome is a corrupted line in the report (visible to the manager) — not a silently actioned instruction. In production, the regex would be replaced or augmented with a dedicated classifier. Filed as a known limitation in GitHub issues (#2).
 
 **No LLM used.** Every statement traces directly to input data. Grounding is structural, not probabilistic.
 
