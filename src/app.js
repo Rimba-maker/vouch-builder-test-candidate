@@ -30,6 +30,12 @@ function validateDate(date) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date)
 }
 
+function buildHandover(date) {
+  const nlDate = nightlogDate(date)
+  const events = ingest({ eventsData: sampleEvents, nightlogText: sampleNightlog, nightlogDate: nlDate })
+  return generateHandover({ events, hotel: sampleEvents.hotel, targetDate: date })
+}
+
 app.get('/', (req, res) => {
   res.json({
     service: 'vouch-handover',
@@ -45,10 +51,7 @@ app.get('/handover/:date', (req, res) => {
   const log = logger.child({ hotel: sampleEvents.hotel.id, night: date, endpoint: 'GET' })
   try {
     log.info('start', { step: 'ingest' })
-    const nlDate = nightlogDate(date)
-    const events = ingest({ eventsData: sampleEvents, nightlogText: sampleNightlog, nightlogDate: nlDate })
-    log.info('ingested', { events: events.length })
-    const handover = generateHandover({ events, hotel: sampleEvents.hotel, targetDate: date })
+    const handover = buildHandover(date)
     log.info('done', { summary: handover.summary })
     res.json(handover)
   } catch (err) {
@@ -62,9 +65,7 @@ app.get('/handover/:date/view', (req, res) => {
   if (!validateDate(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD' })
   const log = logger.child({ hotel: sampleEvents.hotel.id, night: date, endpoint: 'GET-view' })
   try {
-    const nlDate = nightlogDate(date)
-    const events = ingest({ eventsData: sampleEvents, nightlogText: sampleNightlog, nightlogDate: nlDate })
-    const handover = generateHandover({ events, hotel: sampleEvents.hotel, targetDate: date })
+    const handover = buildHandover(date)
     log.info('done', { summary: handover.summary })
     res.setHeader('Content-Type', 'text/html')
     res.send(renderHTML(handover))
@@ -76,8 +77,7 @@ app.get('/handover/:date/view', (req, res) => {
 
 app.post('/handover', (req, res) => {
   const { date, events: eventsData, nightLog, nightLogDate, hotel } = req.body || {}
-  if (!date) return res.status(400).json({ error: 'date required (YYYY-MM-DD morning date)' })
-  if (!validateDate(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD' })
+  if (!validateDate(date)) return res.status(400).json({ error: 'date required (YYYY-MM-DD)' })
   const hotelInfo = hotel || sampleEvents.hotel
   const log = logger.child({ hotel: hotelInfo.id, night: date, endpoint: 'POST' })
   try {

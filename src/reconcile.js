@@ -44,18 +44,18 @@ function reconcile(allEvents, targetDate) {
         original: evt.description,
         source: evt.id
       })
-    } else {
-      if (evt.hasNonEnglish) {
-        flagged.push({
-          type: 'non_english',
-          room: evt.room,
-          summary: `Non-English content in ${evt.id} — room ${evt.room || 'unknown'} mentioned, manual review required`,
-          original: evt.description?.replace(/^\[Non-English entry[^\]]*\]\s*Original:\s*"?|"?$/g, '') || evt.description,
-          source: evt.id
-        })
-      }
-      clean.push(evt)
+      continue // injection: excluded from reconciliation
     }
+    if (evt.hasNonEnglish) {
+      flagged.push({
+        type: 'non_english',
+        room: evt.room,
+        summary: `Non-English content in ${evt.id} — room ${evt.room || 'unknown'} mentioned, manual review required`,
+        original: evt.original || evt.description,
+        source: evt.id
+      })
+    }
+    clean.push(evt) // non-English: flagged for review AND still reconciled
   }
 
   // Group into issue threads by room + category

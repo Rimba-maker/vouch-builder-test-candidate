@@ -63,6 +63,7 @@ function ingestNightlog(text, shiftDateStr) {
       description: isNonLatin && status === 'unknown'
         ? `[Non-English entry, room ${room || 'unknown'}] Original: "${bullet}"`
         : bullet,
+      original: isNonLatin ? bullet : undefined,
       // Conservative default: unknown status → pending (don't assume resolved)
       status: status === 'unknown' ? 'pending' : status,
       hasNonEnglish: isNonLatin

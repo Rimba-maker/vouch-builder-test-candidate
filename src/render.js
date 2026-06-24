@@ -36,7 +36,7 @@ function item(i) {
         <span class="room">${i.room ? `Room ${esc(i.room)}` : 'Hotel-wide'}</span>
         ${i.guest ? `<span class="guest">· ${esc(i.guest)}</span>` : ''}
         <span class="badge badge-${i.thread_status}">${threadLabel(i.thread_status)}</span>
-        ${ageText ? `<span class="age${isEscalated ? ' age-hot' : ''}">${esc(ageText)}</span>` : ''}
+        ${ageText ? `<span class="age${isEscalated ? ' age-hot' : ''}">${ageText}</span>` : ''}
       </div>
       <p class="desc">${esc(i.summary)}</p>
       ${i.note ? `<p class="item-note">${esc(i.note)}</p>` : ''}
