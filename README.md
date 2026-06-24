@@ -94,10 +94,11 @@ Runs entirely on Node.js. Grounding is structural — output can only say what t
 
 ## Structured logs
 
-Every request emits JSON with `hotel`, `night`, `step` fields:
+Every request emits JSON with `hotel`, `night`, `endpoint` fields on every line:
 
 ```json
-{"hotel":"lumen-sg","night":"2026-05-30","step":"ingest","events":26,"nightlogBullets":7}
+{"level":"info","message":"start","hotel":"lumen-sg","night":"2026-05-30","endpoint":"GET","step":"ingest"}
+{"level":"info","message":"done","hotel":"lumen-sg","night":"2026-05-30","endpoint":"GET","summary":{"on_fire":3,"pending":5,"fyi":2,"flagged":3}}
 ```
 
 ## Tests

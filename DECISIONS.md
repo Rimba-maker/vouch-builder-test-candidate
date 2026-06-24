@@ -63,14 +63,18 @@ The real defence is structural: the service never executes instructions, it only
 
 ## Where AI helped most, and where it got in the way
 
+I used Claude Code throughout: planning, all implementation, tests, and deployment config.
+
 **Helped most:**
-- Planning the reconciliation logic and edge cases (this conversation)
-- Catching the prompt injection test case in the data
-- Identifying the Chinese-language entries as a real grounding risk
+- **Timezone edge case.** The shift boundary is 23:00 *local hotel time*, not UTC. Claude caught this early and proposed a `parseOffsetHours()` helper so the same service works for Bangkok (`+07:00`), Singapore (`+08:00`), and Tokyo (`+09:00`) without any per-hotel configuration. This led directly to the multi-timezone test suite (14 tests across 5 timezones).
+- **Structural grounding over LLM.** After I described the grounding requirement, Claude's recommendation was to avoid an LLM entirely: "output ↔ input is a stronger guarantee than output ↔ LLM-confidence." That framing sharpened the whole design — every feature after that was evaluated against "does this let a statement exist without a source?" rather than "does this produce plausible text?"
+- **The injection was inside a staff note.** `evt_0026` reads "Guest handed in a typed note, logged verbatim as received." The injection payload is *inside* the quotation marks — a legitimate staff member faithfully transcribing a guest's paper. Claude flagged this as the interesting case: the attacker vector is the real-world handoff, not a compromised input pipe. That changed how I thought about the detection surface.
+- **Tests that actually revealed edge cases.** Rather than per-function unit tests, Claude pushed for behavior-level tests through the public interface — e.g., "same UTC timestamp, Bangkok vs Tokyo, different shift dates." These tests found real bugs in the first draft of `shiftDate()`.
 
 **Got in the way:**
-- Early in planning, I initially over-estimated the need for an LLM API for parsing. The actual data was structured enough that regex + keyword detection handles the English portions cleanly.
-- The WebFetch tool used to preview the nightlog auto-translated the Chinese text, masking the real challenge until we read the raw file.
+- **WebFetch auto-translated the Mandarin.** When I fetched `night-logs.md` for context, the tool silently translated the Chinese entry to English — which made it look like a solved problem. It was only when I read the raw bytes that I saw the actual challenge. An hour in the wrong direction.
+- **Over-engineering pressure.** Claude initially scaffolded the ingest layer with a shared `IngestAdapter` interface, a factory function, and three separate adapter files — for a codebase with two input sources. Deleted all of it and replaced with a single 11-line `ingest()` function. The deletion test is a better guide than the scaffold.
+- **Comment inflation.** Every function got a JSDoc block explaining what it does. The function names already said that. Removed them all — only kept comments where the *why* is non-obvious (the 23:00 shift boundary, the `continue` vs `else` in the injection classifier).
 
 ## What I'd do in hours 3–6
 
@@ -82,22 +86,7 @@ The real defence is structural: the service never executes instructions, it only
 
 ## Domain glossary
 
-| Term | Definition |
-|------|-----------|
-| **Shift** | A night period running 23:00–07:00 local hotel time, spanning two calendar dates |
-| **Shift date** / **Morning date** | The calendar date of the morning when the shift ends — the date a morning manager reads the handover |
-| **Issue thread** | A sequence of events grouped by `room:category` representing the same ongoing problem across multiple nights |
-| **Still open** | A thread with prior unresolved events; the issue persists into this morning |
-| **Newly resolved** | A thread that was open in prior nights and received a resolved event during the most recent shift |
-| **New tonight** | An issue with no prior history; appeared for the first time on the most recent shift |
-| **Carry-over** | A previously open thread with no update on the most recent shift — implicitly still open |
-| **nights_open** | The count of calendar days between `open_since` and the target morning date; drives escalation logic |
-| **Escalation** | Automatic priority increase when `nights_open >= 3`; pending → high |
-| **Grounding** | Every output statement traces to a specific source event ID or nightlog reference |
-| **Verbatim** | The `summary` field contains the exact staff-written text, not generated or paraphrased content |
-| **Prompt injection** | An entry (typically guest-authored) attempting to manipulate the handover output |
-| **Non-English flag** | An entry containing CJK or other non-Latin characters, flagged for manual review with original text preserved |
-| **Source trail** | The `sources` array on each output item listing all event IDs or nightlog refs that contributed to it |
+See [`CONTEXT.md`](./CONTEXT.md) for the full domain glossary — canonical terms, definitions, and what to avoid. Key terms: Shift, Shift Date, Event, Issue Thread, Thread Status, Carry-over, nights_open, Escalation, Act Now, Grounding, Verbatim, Source Trail, Prompt Injection, Non-English Flag.
 
 ## One thing that surprised me
 
