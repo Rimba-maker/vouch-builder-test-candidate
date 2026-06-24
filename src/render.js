@@ -14,7 +14,11 @@ function threadLabel(t) {
 
 function item(i) {
   const roomLabel = i.room ? `Room ${i.room}` : 'Hotel-wide'
-  const age = i.thread_status === 'still_open' ? `<span class="age">${nightsOpen(i.open_since)}</span>` : ''
+  const nights = i.nights_open || 0
+  const ageText = i.thread_status === 'still_open'
+    ? (nights >= 3 ? `⚠️ ${nights} nights unresolved` : nightsOpen(i.open_since))
+    : ''
+  const age = ageText ? `<span class="age${nights >= 3 ? ' escalated' : ''}">${ageText}</span>` : ''
   const tag = `<span class="tag ${i.thread_status}">${threadLabel(i.thread_status)}</span>`
   const sources = (i.sources || [i.source]).filter(Boolean)
 
@@ -87,6 +91,7 @@ function renderHTML(handover) {
   .tag.new_tonight { background:#dbeafe; color:#1e40af }
   .tag.newly_resolved { background:#dcfce7; color:#166534 }
   .age { font-size:12px; color:#9ca3af; margin-left:auto }
+  .age.escalated { color:#dc2626; font-weight:600 }
   .desc { color:#374151; line-height:1.6 }
 
   /* Source trail */
