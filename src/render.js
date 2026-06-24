@@ -1,5 +1,14 @@
 // Design hybrid: Linear (structure/dark header/spacing) + Airbnb (coral accent) + Notion (Inter type/pastel tints/light canvas)
 
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function nightsLabel(nights) {
   if (nights === 0) return 'tonight'
   if (nights === 1) return 'since last night'
@@ -24,16 +33,16 @@ function item(i) {
   return `
     <div class="item${isEscalated ? ' escalated' : ''}">
       <div class="item-head">
-        <span class="room">${i.room ? `Room ${i.room}` : 'Hotel-wide'}</span>
-        ${i.guest ? `<span class="guest">· ${i.guest}</span>` : ''}
+        <span class="room">${i.room ? `Room ${esc(i.room)}` : 'Hotel-wide'}</span>
+        ${i.guest ? `<span class="guest">· ${esc(i.guest)}</span>` : ''}
         <span class="badge badge-${i.thread_status}">${threadLabel(i.thread_status)}</span>
-        ${ageText ? `<span class="age${isEscalated ? ' age-hot' : ''}">${ageText}</span>` : ''}
+        ${ageText ? `<span class="age${isEscalated ? ' age-hot' : ''}">${esc(ageText)}</span>` : ''}
       </div>
-      <p class="desc">${i.summary}</p>
-      ${i.note ? `<p class="item-note">${i.note}</p>` : ''}
+      <p class="desc">${esc(i.summary)}</p>
+      ${i.note ? `<p class="item-note">${esc(i.note)}</p>` : ''}
       <details class="src">
         <summary>Source trail</summary>
-        <span class="src-list">${sources.map(s => `<code>${s}</code>`).join(' ')}</span>
+        <span class="src-list">${sources.map(s => `<code>${esc(s)}</code>`).join(' ')}</span>
       </details>
     </div>`
 }
@@ -70,7 +79,7 @@ function renderHTML(handover) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Morning Handover — ${hotel_name}</title>
+<title>Morning Handover — ${esc(hotel_name)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -255,8 +264,8 @@ function renderHTML(handover) {
 
 <div class="header">
   <div class="header-inner">
-    <h1>${hotel_name}</h1>
-    <p>Morning handover · ${handover_for}</p>
+    <h1>${esc(hotel_name)}</h1>
+    <p>Morning handover · ${esc(handover_for)}</p>
   </div>
 </div>
 

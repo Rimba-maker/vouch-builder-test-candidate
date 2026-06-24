@@ -9,13 +9,17 @@ Ingests structured events (JSON) + free-text night logs (Markdown), reconciles i
 
 ```
 src/
-  index.js          — Express server, two endpoints
+  app.js            — Express app factory: routes, data loading, validation (shared by index.js and netlify function)
+  index.js          — Thin entry point: require('./app') + listen on PORT
   logger.js         — Winston JSON logger (hotel + night in every log line)
   ingest/
     events.js       — Parse events.json, assign each event to its shift morning date; parseOffsetHours() converts hotel.timezone to hours
     nightlog.js     — Parse free-text night-logs.md, detect non-English content
   reconcile.js      — Cross-night issue threading (still_open / newly_resolved / new_tonight)
   handover.js       — Build action-first output from reconciled threads
+  render.js         — HTML view; all user input escaped via esc() before insertion
+netlify/
+  functions/api.js  — Thin serverless-http wrapper: require('../../src/app')
 data/
   events.json       — Bundled sample data (Lumen Boutique Hotel)
   night-logs.md     — Bundled free-text log (Night 3, contains Mandarin)
@@ -49,6 +53,10 @@ GET  /                        Health check
 - **Prompt injection**: Descriptions matching `/ignore\s+(all|previous|earlier|above)|system\s+note\s+to|report.*all\s+clear|add.*credit.*approved|disregard\s+(the\s+)?(previous|earlier|above|last)|override\s+(previous|earlier|the)|new\s+instructions?|reset\s+(all|previous)|mark\s+(all\s+)?rooms?\s+(as\s+)?clear/i` are moved to `flagged`, never actioned. Each flagged item includes `detection_trigger`.
 - **Non-English text**: Lines with CJK characters are flagged. Room numbers are extracted; status defaults to `pending` (conservative).
 - **Escalation**: Items open 3+ nights (`nights_open >= 3`) auto-escalate priority and display a ⚠️ badge in the HTML view.
+- **Night log date**: For GET routes, night log shift date is auto-derived as `targetDate - 1 day`. POST callers may supply `nightLogDate` explicitly; if omitted it also defaults to `targetDate - 1`.
+- **Date validation**: All endpoints reject non-`YYYY-MM-DD` date strings with a 400 before any processing.
+- **XSS prevention**: All user-controlled strings (summary, note, room, guest, hotel_name) are HTML-escaped via `esc()` in render.js before insertion into the HTML view.
+- **Data loading**: Sample data is loaded once at startup inside a try/catch in `src/app.js`; failure exits with a logged error rather than crashing silently mid-request.
 
 ## Running locally
 
