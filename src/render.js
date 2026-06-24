@@ -1,8 +1,7 @@
-function nightsOpen(openSince) {
-  const days = Math.round((Date.now() - new Date(openSince)) / 86400000)
-  if (days === 0) return 'tonight'
-  if (days === 1) return 'since last night'
-  return `open ${days} nights`
+function nightsLabel(nights) {
+  if (nights === 0) return 'tonight'
+  if (nights === 1) return 'since last night'
+  return `open ${nights} nights`
 }
 
 function threadLabel(t) {
@@ -16,7 +15,7 @@ function item(i) {
   const roomLabel = i.room ? `Room ${i.room}` : 'Hotel-wide'
   const nights = i.nights_open || 0
   const ageText = i.thread_status === 'still_open'
-    ? (nights >= 3 ? `⚠️ ${nights} nights unresolved` : nightsOpen(i.open_since))
+    ? (nights >= 3 ? `⚠️ ${nights} nights unresolved` : nightsLabel(nights))
     : ''
   const age = ageText ? `<span class="age${nights >= 3 ? ' escalated' : ''}">${ageText}</span>` : ''
   const tag = `<span class="tag ${i.thread_status}">${threadLabel(i.thread_status)}</span>`
