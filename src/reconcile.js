@@ -8,20 +8,25 @@ const TYPE_CATEGORY = {
   walk_in: 'walkin', note: 'note', guest_message: 'message'
 }
 
-// ponytail: catches injection attempts in raw event descriptions
-const INJECTION_RE = /ignore\s+all|system\s+note\s+to|report.*all\s+clear|add.*credit.*approved/i
+// Catches injection attempts — structural defense: service never executes, only classifies
+const INJECTION_RE = /ignore\s+(all|previous|earlier|above)|system\s+note\s+to|report.*all\s+clear|add.*credit.*approved|disregard\s+(the\s+)?(previous|earlier|above|last)|override\s+(previous|earlier|the)|new\s+instructions?|reset\s+(all|previous)|mark\s+(all\s+)?rooms?\s+(as\s+)?clear/i
 
 function issueKey(evt) {
   return `${evt.room || 'hotel'}:${TYPE_CATEGORY[evt.type] || evt.type}`
 }
 
-function getPriority(evt) {
+function getPriority(evt, nightsOpen = 0) {
   const cat = TYPE_CATEGORY[evt.type] || evt.type
   if (cat === 'compliance' && evt.status !== 'resolved') return 'critical'
   if (cat === 'finance' && evt.status === 'unresolved') return 'critical'
   if (['maintenance', 'facilities', 'incident', 'damage'].includes(cat) && evt.status !== 'resolved') return 'high'
-  if (evt.status === 'pending') return 'medium'
+  if (evt.status === 'pending') return nightsOpen >= 3 ? 'high' : 'medium'
   return 'low'
+}
+
+function nightsOpenCount(openSince, targetDate) {
+  const ms = new Date(targetDate) - new Date(openSince)
+  return Math.max(0, Math.round(ms / 86400000))
 }
 
 function reconcile(allEvents, targetDate) {
@@ -30,10 +35,12 @@ function reconcile(allEvents, targetDate) {
 
   for (const evt of allEvents) {
     if (INJECTION_RE.test(evt.description || '')) {
+      const match = (evt.description || '').match(INJECTION_RE)
       flagged.push({
         type: 'prompt_injection',
         room: evt.room,
         summary: `Suspected prompt injection in ${evt.id} — content ignored, not actioned`,
+        detection_trigger: match ? match[0] : 'pattern match',
         original: evt.description,
         source: evt.id
       })
@@ -66,13 +73,17 @@ function reconcile(allEvents, targetDate) {
     const prev = thread.filter(e => e.shiftDate < targetDate)
     const hadOpen = prev.some(e => e.status === 'unresolved' || e.status === 'pending')
 
+    const openSince = hadOpen ? prev[0].shiftDate : targetDate
+    const nights = nightsOpenCount(openSince, targetDate)
     const item = {
       room: evt.room,
       guest: evt.guest,
       summary: evt.description,
+      verbatim: true,
       status: evt.status,
-      priority: getPriority(evt),
-      open_since: hadOpen ? prev[0].shiftDate : targetDate,
+      priority: getPriority(evt, nights),
+      open_since: openSince,
+      nights_open: nights,
       thread_status: hadOpen && evt.status === 'resolved'
         ? 'newly_resolved'
         : hadOpen ? 'still_open' : 'new_tonight',
@@ -95,15 +106,19 @@ function reconcile(allEvents, targetDate) {
     if (last.status !== 'unresolved' && last.status !== 'pending') continue
 
     seen.add(key)
+    const openSince = prev.find(e => e.status === 'unresolved' || e.status === 'pending')?.shiftDate || last.shiftDate
+    const nights = nightsOpenCount(openSince, targetDate)
     const item = {
       room: last.room,
       guest: last.guest,
       summary: last.description,
+      verbatim: true,
       status: last.status,
-      priority: getPriority(last),
-      open_since: prev.find(e => e.status === 'unresolved' || e.status === 'pending')?.shiftDate || last.shiftDate,
+      priority: getPriority(last, nights),
+      open_since: openSince,
+      nights_open: nights,
       thread_status: 'still_open',
-      note: 'No update tonight',
+      note: nights >= 3 ? `No update tonight — open ${nights} nights, escalated` : 'No update tonight',
       sources: thread.map(e => e.id).filter(Boolean)
     }
 
