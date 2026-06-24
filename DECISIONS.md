@@ -11,7 +11,7 @@
 - Prompt injection detection and flagging
 - Non-English (Mandarin) detection with conservative fallback — flag + manual review, original text preserved
 - Winston structured logging with `hotel`, `night`, and `step` fields on every line
-- 35 automated tests covering shiftDate logic, reconciliation threads, nightlog parsing, and prompt injection
+- 44 automated tests covering shiftDate logic (including multi-timezone), reconciliation threads, nightlog parsing, and prompt injection
 
 **Skipped:**
 - Database — data is bundled for this test; in production this would be a DB query
