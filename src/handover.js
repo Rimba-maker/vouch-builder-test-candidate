@@ -1,19 +1,7 @@
 const { reconcile } = require('./reconcile')
 
-function generateHandover({ events, nightlogEvents, nonEnglishFlags, hotel, targetDate }) {
-  const sections = reconcile([...events, ...nightlogEvents], targetDate)
-
-  // Append non-English flags to flagged section
-  for (const f of nonEnglishFlags) {
-    sections.flagged.push({
-      type: 'non_english',
-      room: f.room,
-      summary: `Non-English content in ${f.source} — room ${f.room || 'unknown'} mentioned, manual review required`,
-      original: f.original,
-      source: f.source
-    })
-  }
-
+function generateHandover({ events, hotel, targetDate }) {
+  const sections = reconcile(events, targetDate)
   return {
     hotel: hotel.id,
     hotel_name: hotel.name,

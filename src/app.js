@@ -2,8 +2,7 @@ const express = require('express')
 const fs = require('fs')
 const path = require('path')
 const logger = require('./logger')
-const { ingestEvents } = require('./ingest/events')
-const { ingestNightlog } = require('./ingest/nightlog')
+const { ingest } = require('./ingest')
 const { generateHandover } = require('./handover')
 const { renderHTML } = require('./render')
 
@@ -46,11 +45,10 @@ app.get('/handover/:date', (req, res) => {
   const log = logger.child({ hotel: sampleEvents.hotel.id, night: date, endpoint: 'GET' })
   try {
     log.info('start', { step: 'ingest' })
-    const events = ingestEvents(sampleEvents)
     const nlDate = nightlogDate(date)
-    const { events: nlEvents, flags } = ingestNightlog(sampleNightlog, nlDate)
-    log.info('ingested', { events: events.length, nightlogBullets: nlEvents.length, nonEnglishFlags: flags.length })
-    const handover = generateHandover({ events, nightlogEvents: nlEvents, nonEnglishFlags: flags, hotel: sampleEvents.hotel, targetDate: date })
+    const events = ingest({ eventsData: sampleEvents, nightlogText: sampleNightlog, nightlogDate: nlDate })
+    log.info('ingested', { events: events.length })
+    const handover = generateHandover({ events, hotel: sampleEvents.hotel, targetDate: date })
     log.info('done', { summary: handover.summary })
     res.json(handover)
   } catch (err) {
@@ -64,10 +62,9 @@ app.get('/handover/:date/view', (req, res) => {
   if (!validateDate(date)) return res.status(400).json({ error: 'date must be YYYY-MM-DD' })
   const log = logger.child({ hotel: sampleEvents.hotel.id, night: date, endpoint: 'GET-view' })
   try {
-    const events = ingestEvents(sampleEvents)
     const nlDate = nightlogDate(date)
-    const { events: nlEvents, flags } = ingestNightlog(sampleNightlog, nlDate)
-    const handover = generateHandover({ events, nightlogEvents: nlEvents, nonEnglishFlags: flags, hotel: sampleEvents.hotel, targetDate: date })
+    const events = ingest({ eventsData: sampleEvents, nightlogText: sampleNightlog, nightlogDate: nlDate })
+    const handover = generateHandover({ events, hotel: sampleEvents.hotel, targetDate: date })
     log.info('done', { summary: handover.summary })
     res.setHeader('Content-Type', 'text/html')
     res.send(renderHTML(handover))
@@ -85,12 +82,14 @@ app.post('/handover', (req, res) => {
   const log = logger.child({ hotel: hotelInfo.id, night: date, endpoint: 'POST' })
   try {
     log.info('start', { step: 'ingest' })
-    const events = ingestEvents(eventsData || sampleEvents)
-    const nlText = nightLog || sampleNightlog
     const nlDate = nightLogDate || nightlogDate(date)
-    const { events: nlEvents, flags } = ingestNightlog(nlText, nlDate)
-    log.info('ingested', { events: events.length, nightlogBullets: nlEvents.length, nonEnglishFlags: flags.length })
-    const handover = generateHandover({ events, nightlogEvents: nlEvents, nonEnglishFlags: flags, hotel: hotelInfo, targetDate: date })
+    const events = ingest({
+      eventsData: eventsData || sampleEvents,
+      nightlogText: nightLog || sampleNightlog,
+      nightlogDate: nlDate
+    })
+    log.info('ingested', { events: events.length })
+    const handover = generateHandover({ events, hotel: hotelInfo, targetDate: date })
     log.info('done', { summary: handover.summary })
     res.json(handover)
   } catch (err) {

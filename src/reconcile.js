@@ -45,6 +45,15 @@ function reconcile(allEvents, targetDate) {
         source: evt.id
       })
     } else {
+      if (evt.hasNonEnglish) {
+        flagged.push({
+          type: 'non_english',
+          room: evt.room,
+          summary: `Non-English content in ${evt.id} — room ${evt.room || 'unknown'} mentioned, manual review required`,
+          original: evt.description?.replace(/^\[Non-English entry[^\]]*\]\s*Original:\s*"?|"?$/g, '') || evt.description,
+          source: evt.id
+        })
+      }
       clean.push(evt)
     }
   }

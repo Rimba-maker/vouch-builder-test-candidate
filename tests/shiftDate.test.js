@@ -1,6 +1,6 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { shiftDate, parseOffsetHours } = require('../src/ingest/events')
+const { shiftDate, parseOffsetHours } = require('../src/ingest/shiftDate')
 
 // SGT = UTC+8. Shift runs 23:00–07:00 SGT.
 // Events at/after 23:00 SGT → belong to NEXT morning.

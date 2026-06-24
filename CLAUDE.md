@@ -13,7 +13,9 @@ src/
   index.js          — Thin entry point: require('./app') + listen on PORT
   logger.js         — Winston JSON logger (hotel + night in every log line)
   ingest/
-    events.js       — Parse events.json, assign each event to its shift morning date; parseOffsetHours() converts hotel.timezone to hours
+    index.js        — Single seam: ingest({ eventsData, nightlogText, nightlogDate }) → Event[] (unified interface)
+    events.js       — Parse events.json into normalized events; imports shiftDate internally
+    shiftDate.js    — shiftDate(iso, tzOffsetHours) + parseOffsetHours(tz); own module, own tests
     nightlog.js     — Parse free-text night-logs.md, detect non-English content
   reconcile.js      — Cross-night issue threading (still_open / newly_resolved / new_tonight)
   handover.js       — Build action-first output from reconciled threads
@@ -54,6 +56,8 @@ GET  /                        Health check
 - **Non-English text**: Lines with CJK characters are flagged. Room numbers are extracted; status defaults to `pending` (conservative).
 - **Escalation**: Items open 3+ nights (`nights_open >= 3`) auto-escalate priority and display a ⚠️ badge in the HTML view.
 - **Night log date**: For GET routes, night log shift date is auto-derived as `targetDate - 1 day`. POST callers may supply `nightLogDate` explicitly; if omitted it also defaults to `targetDate - 1`.
+- **Unified ingest seam**: `ingest({ eventsData, nightlogText, nightlogDate })` returns a flat `Event[]`. Non-English flagging moved into `reconcile()` alongside injection detection — callers never handle `flags` separately.
+- **generateHandover interface**: `({ events, hotel, targetDate })` — 3 keys, no internal implementation details exposed.
 - **Date validation**: All endpoints reject non-`YYYY-MM-DD` date strings with a 400 before any processing.
 - **XSS prevention**: All user-controlled strings (summary, note, room, guest, hotel_name) are HTML-escaped via `esc()` in render.js before insertion into the HTML view.
 - **Data loading**: Sample data is loaded once at startup inside a try/catch in `src/app.js`; failure exits with a logged error rather than crashing silently mid-request.
