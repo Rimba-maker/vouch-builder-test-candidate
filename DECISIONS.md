@@ -80,6 +80,25 @@ The real defence is structural: the service never executes instructions, it only
 4. **Multi-hotel support** — parameterize hotel config; load data from a DB query instead of bundled files
 5. **Contradiction detection** — explicit cross-check: if a thread goes unresolved → resolved → unresolved across nights, surface it as a contradiction flag rather than silently using the latest status
 
+## Domain glossary
+
+| Term | Definition |
+|------|-----------|
+| **Shift** | A night period running 23:00–07:00 local hotel time, spanning two calendar dates |
+| **Shift date** / **Morning date** | The calendar date of the morning when the shift ends — the date a morning manager reads the handover |
+| **Issue thread** | A sequence of events grouped by `room:category` representing the same ongoing problem across multiple nights |
+| **Still open** | A thread with prior unresolved events; the issue persists into this morning |
+| **Newly resolved** | A thread that was open in prior nights and received a resolved event during the most recent shift |
+| **New tonight** | An issue with no prior history; appeared for the first time on the most recent shift |
+| **Carry-over** | A previously open thread with no update on the most recent shift — implicitly still open |
+| **nights_open** | The count of calendar days between `open_since` and the target morning date; drives escalation logic |
+| **Escalation** | Automatic priority increase when `nights_open >= 3`; pending → high |
+| **Grounding** | Every output statement traces to a specific source event ID or nightlog reference |
+| **Verbatim** | The `summary` field contains the exact staff-written text, not generated or paraphrased content |
+| **Prompt injection** | An entry (typically guest-authored) attempting to manipulate the handover output |
+| **Non-English flag** | An entry containing CJK or other non-Latin characters, flagged for manual review with original text preserved |
+| **Source trail** | The `sources` array on each output item listing all event IDs or nightlog refs that contributed to it |
+
 ## One thing that surprised me
 
 The prompt injection in `evt_0026` was embedded inside a staff-logged note ("Guest handed in a typed note, logged verbatim as received: ...") — not a raw injection attempt. The staff member correctly filed it as an item for the morning team. This means the injection risk in production isn't just from compromised input pipelines; it comes from legitimate staff faithfully transcribing what guests hand them. The detection needs to run on the content of what's logged, not just on who logged it.

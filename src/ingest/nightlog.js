@@ -21,10 +21,10 @@ function detectStatus(text) {
 
 function detectType(text) {
   const t = text.toLowerCase()
-  if (/aircon|compressor|repair|out\s+of\s+order|safe|保险箱|护照/.test(t)) return 'maintenance'
+  if (/aircon|compressor|repair|out\s+of\s+order|safe|保险箱|broken|faulty|damaged/.test(t)) return 'maintenance'
   if (/leak|corridor|drip|flood/.test(t)) return 'facilities'
   if (/deposit|card\s+declin|charge|no.show|booking\s+terms/.test(t)) return 'finance'
-  if (/passport|immigration|scan/.test(t)) return 'compliance'
+  if (/passport|immigration|scan|护照/.test(t)) return 'compliance'
   if (/check.?in|checked\s+in/.test(t)) return 'check_in'
   if (/door\s+ajar|unoccupied|no\s+luggage|nobody/.test(t)) return 'incident'
   if (/noise|complaint|angry/.test(t)) return 'complaint'
