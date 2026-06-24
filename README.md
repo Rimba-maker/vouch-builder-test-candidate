@@ -13,22 +13,22 @@ npm test         # 44 tests — shiftDate, reconciliation, nightlog parsing, pro
 ## Deployed
 
 ```
-https://vouch-handover.netlify.app
+https://vouch-builder-test-candidate.netlify.app
 ```
 
 **View in browser (morning manager view):**
 ```
-https://vouch-handover.netlify.app/handover/2026-05-30/view
+https://vouch-builder-test-candidate.netlify.app/handover/2026-05-30/view
 ```
 
 **Sample curl command:**
 ```bash
-curl https://vouch-handover.netlify.app/handover/2026-05-30
+curl https://vouch-builder-test-candidate.netlify.app/handover/2026-05-30
 ```
 
 **POST with custom data:**
 ```bash
-curl -X POST https://vouch-handover.netlify.app/handover \
+curl -X POST https://vouch-builder-test-candidate.netlify.app/handover \
   -H "Content-Type: application/json" \
   -d '{
     "date": "2026-05-30",
